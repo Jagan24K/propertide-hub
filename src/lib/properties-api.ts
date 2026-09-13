@@ -33,7 +33,7 @@ async function request(method: string, params: Record<string, string>) {
     res = await fetch(buildUrl(params), { method });
   } catch {
     throw new Error(
-      "Could not reach the property service. Please check your connection and try again.",
+      "Could not reach the property service from this browser. This is expected in preview (the service only accepts requests from its own hosted site) and will work once the app is hosted on Catalyst.",
     );
   }
   if (!res.ok) {
