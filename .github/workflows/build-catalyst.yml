@@ -1,0 +1,46 @@
+name: Build Catalyst Web Client
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build React application
+        run: npm run build
+
+      - name: Create Catalyst client package
+        run: |
+          cat > dist/client-package.json <<'EOF'
+          {
+            "name": "PropertyManagementUI",
+            "version": "1.0.0",
+            "description": "Property Management frontend connected to Zoho Catalyst",
+            "homepage": "index.html"
+          }
+          EOF
+
+      - name: Create deployment ZIP
+        run: |
+          cd dist
+          zip -r ../property-management-catalyst-ui.zip .
+
+      - name: Upload Catalyst package
+        uses: actions/upload-artifact@v4
+        with:
+          name: property-management-catalyst-ui
+          path: property-management-catalyst-ui.zip
