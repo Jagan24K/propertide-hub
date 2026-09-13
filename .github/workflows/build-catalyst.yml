@@ -15,17 +15,56 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
       - name: Install dependencies
         run: npm install
 
-      - name: Build React application
-        run: npm run build
-
-      - name: Create Catalyst client package
+      - name: Create Catalyst static build configuration
         run: |
-          cat > dist/client-package.json <<'EOF'
+          cat > vite.config.catalyst.ts <<'EOF'
+          import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+
+          export default defineConfig({
+            nitro: false,
+            tanstackStart: {
+              server: { entry: "server" },
+              prerender: {
+                enabled: true,
+                crawlLinks: true
+              },
+              pages: [
+                { path: "/" }
+              ]
+            },
+            vite: {
+              base: "./"
+            }
+          });
+          EOF
+
+      - name: Build static web client
+        run: npx vite build --config vite.config.catalyst.ts
+
+      - name: Find built client
+        run: |
+          echo "Searching for index.html..."
+          find dist -type f -name "index.html" -print || true
+
+      - name: Prepare Catalyst client package
+        run: |
+          mkdir -p catalyst-client
+
+          if [ -f "dist/client/index.html" ]; then
+            cp -r dist/client/. catalyst-client/
+          elif [ -f "dist/index.html" ]; then
+            cp -r dist/. catalyst-client/
+          else
+            echo "ERROR: Could not find built index.html"
+            find dist -maxdepth 4 -type f | head -100
+            exit 1
+          fi
+
+          cat > catalyst-client/client-package.json <<'EOF'
           {
             "name": "PropertyManagementUI",
             "version": "1.0.0",
@@ -34,9 +73,17 @@ jobs:
           }
           EOF
 
+      - name: Verify Catalyst package
+        run: |
+          echo "Catalyst package contents:"
+          find catalyst-client -maxdepth 2 -type f | sort
+
+          test -f catalyst-client/index.html
+          test -f catalyst-client/client-package.json
+
       - name: Create deployment ZIP
         run: |
-          cd dist
+          cd catalyst-client
           zip -r ../property-management-catalyst-ui.zip .
 
       - name: Upload Catalyst package
