@@ -37,7 +37,7 @@ jobs:
               ]
             },
             vite: {
-              base: "./"
+              base: "/app/"
             }
           });
           EOF
