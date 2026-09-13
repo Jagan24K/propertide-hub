@@ -33,16 +33,42 @@ async function request(method: string, params: Record<string, string>) {
     res = await fetch(buildUrl(params), { method });
   } catch {
     throw new Error(
-      "Could not reach the property service. Please check your connection and try again.",
+      "Could not reach the property service from this browser. This is expected in preview (the service only accepts requests from its own hosted site) and will work once the app is hosted on Catalyst.",
     );
   }
   if (!res.ok) {
     throw new Error(`The property service responded with an error (${res.status}).`);
   }
+  let payload: unknown;
   try {
-    return await res.json();
+    payload = await res.json();
   } catch {
-    return {};
+    return {} as Record<string, unknown>;
+  }
+
+  // Catalyst API Gateway wraps the function response inside an "output" string.
+  let data = unwrap(payload);
+  if (data && typeof data === "object" && "output" in (data as Record<string, unknown>)) {
+    data = unwrap((data as Record<string, unknown>)["output"]);
+  }
+
+  const obj = (data ?? {}) as Record<string, unknown>;
+  if (obj["success"] === false) {
+    throw new Error(
+      typeof obj["message"] === "string"
+        ? obj["message"]
+        : "The property service could not complete the request.",
+    );
+  }
+  return obj;
+}
+
+function unwrap(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
   }
 }
 
@@ -62,12 +88,12 @@ function normalize(row: Record<string, unknown>): Property {
 
 export async function fetchProperties(): Promise<Property[]> {
   const data = await request("GET", { action: "get" });
-  const list = Array.isArray(data?.properties)
-    ? data.properties
-    : Array.isArray(data?.data)
-      ? data.data
+  const raw = Array.isArray(data["properties"])
+    ? data["properties"]
+    : Array.isArray(data["data"])
+      ? data["data"]
       : [];
-  return list.filter(Boolean).map(normalize);
+  return (raw as Record<string, unknown>[]).filter(Boolean).map(normalize);
 }
 
 export async function createProperty(input: PropertyInput) {
