@@ -88,12 +88,12 @@ function normalize(row: Record<string, unknown>): Property {
 
 export async function fetchProperties(): Promise<Property[]> {
   const data = await request("GET", { action: "get" });
-  const list = Array.isArray(data?.properties)
-    ? data.properties
-    : Array.isArray(data?.data)
-      ? data.data
+  const raw = Array.isArray(data["properties"])
+    ? data["properties"]
+    : Array.isArray(data["data"])
+      ? data["data"]
       : [];
-  return list.filter(Boolean).map(normalize);
+  return (raw as Record<string, unknown>[]).filter(Boolean).map(normalize);
 }
 
 export async function createProperty(input: PropertyInput) {
